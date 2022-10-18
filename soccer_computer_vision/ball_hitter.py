@@ -71,10 +71,19 @@ class BallHitterNode(Node):
         self.p1[0] = self.p2[0] + self.n * (-1 * math.cos(self.theta_g)) 
         self.p1[1] = self.p2[1] + self.n * (-1 * math.sin(self.theta_g))
         
+        #Calculate the angle towards kicking point
         self.theta_1 = math.atan2(self.p1[1], self.p1[0])
+
+        #Calculate the amount to turn to reach theta1
         self.d_theta_1 = math.pi / 2 - self.theta_1
+        
+        #Calculate distance to kicking point
         self.d1 = math.sqrt(self.p1[0] ** 2 + self.p1[1] ** 2)
+        
+        #Calculate the amount that we need to turn to reach theta_g
         self.d_theta_2 = self.theta_g - self.theta_1
+        
+        #setup
         self.setup_markers()
         self.finished_setup = True
 
