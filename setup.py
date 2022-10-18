@@ -20,8 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'ball_tracker = neato_soccer.ball_tracker:main',
-            'ball_tracker_solution = neato_soccer.ball_tracker_solution:main'
+            'ball_tracker = soccer_computer_vision.ball_tracker:main',
+            'ball_tracker_solution = soccer_computer_vision.ball_tracker_solution:main',
+            'ball_hitter = soccer_computer_vision.ball_hitter:main'
         ],
     },
 )
