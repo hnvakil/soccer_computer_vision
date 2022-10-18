@@ -124,6 +124,7 @@ class BallHitterNode(Node):
         self.drive(self.d1)
         self.turn(self.d_theta_2)
         self.drive(self.n)
+        self.drive(0.01)
         time.sleep(100)
 
         # some sort of reference frame issue - is x and y the same in our model and atan2?
