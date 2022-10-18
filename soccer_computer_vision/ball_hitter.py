@@ -50,17 +50,27 @@ class BallHitterNode(Node):
         self.ball_y = 1.0
     
     def do_setup(self):
+        #identify the locations of ball and goal
         self.find_objects()
         print(self.goal_x)
         print(self.ball_x)
+
+        #Find the slope of the line between the goal and the ball in current Neato frame
         self.slope = (self.goal_y - self.ball_y) / (self.goal_x - self.ball_x)
+
+        #find the angle that defines that slope, the final heading necessary to kick the ball
         self.theta_g = math.atan2(self.goal_y - self.ball_y, self.goal_x - self.ball_x)
+        
+        #the xy location of the ball
         self.p2 = [self.ball_x, self.ball_y]
         self.pb = self.p2
         print(self.p1)
         print(self.p2)
+
+        #Calculate the kicking point behind the ball
         self.p1[0] = self.p2[0] + self.n * (-1 * math.cos(self.theta_g)) 
         self.p1[1] = self.p2[1] + self.n * (-1 * math.sin(self.theta_g))
+        
         self.theta_1 = math.atan2(self.p1[1], self.p1[0])
         self.d_theta_1 = math.pi / 2 - self.theta_1
         self.d1 = math.sqrt(self.p1[0] ** 2 + self.p1[1] ** 2)
