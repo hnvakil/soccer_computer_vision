@@ -41,6 +41,7 @@ class BallHitterNode(Node):
         self.ball_marker = Marker()
         self.goal_marker = Marker()
         self.dest_marker = Marker()
+        self.hit_ball = False
 
 
     def find_objects(self):
@@ -133,22 +134,28 @@ class BallHitterNode(Node):
         time.sleep(time_to_go)
         msg.linear.x = 0.0
         self.vel_pub.publish(msg)
+    
+    def check_lined_up_for_shot(self):
+        return True
 
 
 
     def run_loop(self):
-        if not self.finished_setup:
-            self.do_setup()
-        print(f"d_theta_1: {self.d_theta_1}, d1: {self.d1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
-        self.turn(self.d_theta_1)
-        self.drive(self.d1)
-        self.turn(self.d_theta_2)
-        self.drive(self.n)
-        self.drive(0.01)
-        time.sleep(100)
-
-        # some sort of reference frame issue - is x and y the same in our model and atan2?
-
+        while not self.hit_ball:
+            if not self.finished_setup:
+                self.do_setup()
+            print(f"d_theta_1: {self.d_theta_1}, d1: {self.d1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
+            self.turn(self.d_theta_1)
+            self.drive(self.d1)
+            self.turn(self.d_theta_2)
+            if self.check_lined_up_for_shot():
+                self.drive(self.n)
+                self.hit_ball = True
+                self.drive(0.01)
+                time.sleep(100)
+            else: 
+                self.finished_setup = False
+        
         
 
     def process_scan(self, msg):
