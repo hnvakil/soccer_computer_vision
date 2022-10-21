@@ -72,7 +72,7 @@ class BallHitterNode(Node):
         self.p1[1] = self.p2[1] + self.n * (-1 * math.sin(self.theta_g))
         
         self.theta_1 = math.atan2(self.p1[1], self.p1[0])
-        self.d_theta_1 = math.pi / 2 - self.theta_1
+        self.d_theta_1 = self.theta_1
         self.d1 = math.sqrt(self.p1[0] ** 2 + self.p1[1] ** 2)
         self.d_theta_2 = self.theta_g - self.theta_1
         self.setup_markers()
@@ -98,6 +98,7 @@ class BallHitterNode(Node):
         marker.color.a = 1.0
         marker.color.g = 1.0
         marker.color.r = 0.5
+        marker.color.b = 0.5
         marker.pose.position.z = 0.0
         marker.pose.position.y = y
         marker.pose.position.x = x
@@ -129,7 +130,7 @@ class BallHitterNode(Node):
     def run_loop(self):
         if not self.finished_setup:
             self.do_setup()
-        print(f"d_theta_1: {self.d_theta_1}, d1: {self.d1}, d_theta_2: {self.d_theta_2}, n: {self.n}")
+        print(f"d_theta_1: {self.d_theta_1}, d1: {self.d1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
         self.turn(self.d_theta_1)
         self.drive(self.d1)
         self.turn(self.d_theta_2)
