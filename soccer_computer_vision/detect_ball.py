@@ -33,9 +33,9 @@ class BallFinder(Node):
         self.green_upper_bound = 100
         self.blue_upper_bound = 50
         self.h_lower_bound = 0
-        self.s_lower_bound = 176
-        self.v_lower_bound = 0
-        self.h_upper_bound = 12
+        self.s_lower_bound = 195
+        self.v_lower_bound = 50
+        self.h_upper_bound = 10
         self.s_upper_bound = 255
         self.v_upper_bound = 255
         self.turn_speed = 0.0
@@ -152,33 +152,37 @@ class BallFinder(Node):
         if not self.cv_image is None:
             self.binary_image = cv2.inRange(self.cv_image, (self.blue_lower_bound,self.green_lower_bound,self.red_lower_bound), (self.blue_upper_bound,self.green_upper_bound,self.red_upper_bound))
             self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
+            print(type(self.binary_hsv))
+            print(self.binary_hsv)
             cv2.imshow('hsv_window', self.binary_hsv)
-           
-            #
-            # self.bin_with_circle = cv2.circle(self.binary_hsv, (math.floor(self.center_x), math.floor(self.center_y)), radius = 20, color = (0,100,50), thickness = 5)
-            """
-            ret, im = cv2.threshold(self.binary_hsv, 127, 255, 0)
-            contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            print(contours)
-            cv2.drawContours(self.binary_hsv, contours, -1, (255,255,0), 3)
-            """
+            contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            blob = max(contours, key=lambda el: cv2.contourArea(el))
+            M = cv2.moments(blob)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            canvas = self.binary_hsv.copy()
+            cv2.circle(canvas, center, 20, (50,50,50), -1)
+            cv2.imshow('canvas', canvas)
+            print('a')
+
+
+
+            dimensions = self.binary_hsv.shape
+            
             """
             print('a')
+            params = cv2.SimpleBlobDetector_Params()
+            params.filterByInertia = False
+            params.filterByConvexity = False
             detector = cv2.SimpleBlobDetector()
             print('b')
-            keypoints = detector.detect(self.binary_hsv)
+            keypoints = detector.detect(img)    
             print('c')
-            #blank = np.zeros((1,1))
-            #print('d')
-            #blobs = cv2.drawKeypoints(self.binary_hsv, keypoints, blank, (0,255,255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
-            #print('e')
-            #cv2.imshow('Blobs',blobs)
+            blank = np.zeros((1,1))
+            print('d')
+            blobs = cv2.drawKeypoints(self.binary_hsv, keypoints, blank, (0,255,255), cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+            print('e')
+            cv2.imshow('Blobs',blobs)
             """
-
-
-
-
-            
 
             # detect circles in the image
             """
