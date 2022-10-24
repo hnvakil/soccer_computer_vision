@@ -44,15 +44,50 @@ class BallHitterNode(Node):
         self.hit_ball = False
 
 
-    def find_objects(self):
+    def assign_objects(self):
         self.goal_x = 3.0
         self.goal_y = 2.0
         self.ball_x = 2.0
         self.ball_y = 1.0
-    
+
+    def find_objects(self):
+        ball_seen = 0
+        goal_seen = 0
+        #spin until ball seen
+        msg = Twist()
+        speed = 0.5
+        msg.angular.z = speed
+        self.vel_pub.publish(msg) #this feels like it could also just be a function
+        while not ball_seen:
+            #look_for_ball()
+            #idk what to really write here. some funtion that looks for the ball
+            pass
+        msg = Twist()
+        speed = 0.0
+        msg.angular.z = speed
+        self.vel_pub.publish(msg) #this feels like it could also just be a function
+
+        #make note of current heading
+            #use Pose to pull the current heading
+
+        #estimate distance
+            #use calibration curve to estimate distance 
+
+        #spin until goal seen
+            #same procedure as spinning to find the ball. could definitely wrap it in a fucntion
+
+        #make note of angle change
+            #pull angle change from Pose again 
+
+        #estimate distance
+            #same procedure as earlier? another function
+
+        #convert from polar to cartesian
+            #another fucntion 
+
     def do_setup(self):
         #identify the locations of ball and goal
-        self.find_objects()
+        self.assign_objects() #change this once find_objects is actually made
         print(self.goal_x)
         print(self.ball_x)
 
