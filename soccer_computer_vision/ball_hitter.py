@@ -7,10 +7,14 @@ import tty
 import select
 import sys
 import termios
+import cv2
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseArray, Pose, Point, Quaternion
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import Marker
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+
 
 
 
@@ -19,7 +23,7 @@ class BallHitterNode(Node):
     # 0: looking for person
     # 1: approaching person
     # 2: 
-    def __init__(self):
+    def __init__(self, image_topic):
         super().__init__('person_follower')
         self.create_timer(0.1, self.run_loop)
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
@@ -45,8 +49,27 @@ class BallHitterNode(Node):
         self.robot_pose = None
         self.create_subscription(Pose, 'currentpose', self.read_pose, 10)
 
+        # open cv stuff:
+        self.cv_image = None                        # the latest image from the camera
+        self.hsv_image = None
+        self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
+
+        self.create_subscription(Image, image_topic, self.process_image, 10)
+        self.h_lower_bound = 0
+        self.s_lower_bound = 195
+        self.v_lower_bound = 50
+        self.h_upper_bound = 10
+        self.s_upper_bound = 255
+        self.v_upper_bound = 255
+
     def read_pose(self,msg):
         self.robot_pose = msg
+
+    def process_image(self, msg):
+        """ Process image messages from ROS and stash them in an attribute
+            called cv_image for subsequent processing """
+        self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
     def assign_objects(self):
         self.goal_x = 3.0
@@ -228,6 +251,27 @@ class BallHitterNode(Node):
 
 
     def run_loop(self):
+        cv2.namedWindow('video_window')
+        cv2.namedWindow('masked_window')
+
+        if not self.cv_image is None:
+            self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
+            print(type(self.binary_hsv))
+            print(self.binary_hsv)
+            contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            blob = max(contours, key=lambda el: cv2.contourArea(el))
+            M = cv2.moments(blob)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            
+            canvas = self.binary_hsv.copy()
+            cv2.circle(canvas, center, 20, (50,50,50), -1)
+            cv2.imshow('masked_window', canvas)
+            cv2.imshow('video_window', self.cv_image)
+        if hasattr(self, 'image_info_window'):
+            cv2.imshow('image_info', self.image_info_window)
+        cv2.waitKey(5)
+
+        """
         while not self.hit_ball:
             if not self.finished_setup:
                 self.do_setup()
@@ -242,6 +286,7 @@ class BallHitterNode(Node):
                 time.sleep(100)
             else: 
                 self.finished_setup = False
+        """
         
         
 
@@ -251,7 +296,7 @@ class BallHitterNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = BallHitterNode()
+    node = BallHitterNode("camera/image_raw")
     rclpy.spin(node)
     rclpy.shutdown()
 
