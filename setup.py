@@ -22,7 +22,8 @@ setup(
         'console_scripts': [
             'ball_tracker = soccer_computer_vision.ball_tracker:main',
             'ball_tracker_solution = soccer_computer_vision.ball_tracker_solution:main',
-            'ball_hitter = soccer_computer_vision.ball_hitter:main'
+            'ball_hitter = soccer_computer_vision.ball_hitter:main',
+            'detect_ball = soccer_computer_vision.detect_ball:main'
         ],
     },
 )
