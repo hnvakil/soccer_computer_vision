@@ -8,7 +8,7 @@ import select
 import sys
 import termios
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseArray, Pose, Point, Quaternion
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import Marker
 
@@ -42,7 +42,11 @@ class BallHitterNode(Node):
         self.goal_marker = Marker()
         self.dest_marker = Marker()
         self.hit_ball = False
+        self.robot_pose = None
+        self.create_subscription(Pose, 'currentpose', self.read_pose, 10)
 
+    def read_pose(self,msg):
+        self.robot_pose = msg
 
     def assign_objects(self):
         self.goal_x = 3.0
@@ -53,37 +57,85 @@ class BallHitterNode(Node):
     def find_objects(self):
         ball_seen = 0
         goal_seen = 0
-        #spin until ball seen
-        msg = Twist()
-        speed = 0.5
-        msg.angular.z = speed
-        self.vel_pub.publish(msg) #this feels like it could also just be a function
+
+        #start turning to look for ball
+        self.search()
         while not ball_seen:
             #look_for_ball()
             #idk what to really write here. some funtion that looks for the ball
             pass
+        self.stop()
+
+        #make note of current heading
+        ball_heading = self.heading_from_pose(self.robot_pose)
+
+        #estimate distance
+        ball_distance = self.find_ball_distance() 
+
+        #spin until goal seen
+        self.search()
+        while not goal_seen:
+            pass
+        self.stop()
+
+        #make note of angle change
+        goal_heading = self.heading_from_pose(self.robot_pose) 
+        angle_to_ball = goal_heading - ball_heading
+
+        #estimate distance
+        goal_distance = self.find_goal_distance()
+
+        #convert from polar to cartesian
+        [self.ball_x, self.ball_y] = self.polar_to_cartesian(ball_distance, angle_to_ball) 
+        [self.goal_x, self.goal_y] = self.polar_to_cartesian(goal_distance, 0) 
+
+    def polar_to_cartesian(self,d,theta):
+        x = d * math.cos(theta)
+        y = d * math.sin(theta)
+        return [x,y]
+
+    def heading_from_pose(self, pose):
+        """ Convert pose (geometry_msgs.Pose) to a (x,y,yaw) tuple """
+        orientation_tuple = (pose.orientation.x,
+                             pose.orientation.y,
+                             pose.orientation.z,
+                             pose.orientation.w)
+        angles = self.euler_from_quaternion(*orientation_tuple)
+        return angles[2]
+    
+    def euler_from_quaternion(x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians
+    
+    def search(self):
+        msg = Twist()
+        speed = 0.5
+        msg.angular.z = speed
+        self.vel_pub.publish(msg)
+
+    def stop(self):
         msg = Twist()
         speed = 0.0
         msg.angular.z = speed
-        self.vel_pub.publish(msg) #this feels like it could also just be a function
-
-        #make note of current heading
-            #use Pose to pull the current heading
-
-        #estimate distance
-            #use calibration curve to estimate distance 
-
-        #spin until goal seen
-            #same procedure as spinning to find the ball. could definitely wrap it in a fucntion
-
-        #make note of angle change
-            #pull angle change from Pose again 
-
-        #estimate distance
-            #same procedure as earlier? another function
-
-        #convert from polar to cartesian
-            #another fucntion 
+        self.vel_pub.publish(msg)
 
     def do_setup(self):
         #identify the locations of ball and goal
