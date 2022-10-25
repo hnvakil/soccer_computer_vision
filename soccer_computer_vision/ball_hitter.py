@@ -49,6 +49,7 @@ class BallHitterNode(Node):
         self.hit_ball = False
         self.robot_pose = None
         self.image_x = 0
+        self.objects_found = False
         self.create_subscription(Pose, 'currentpose', self.read_pose, 10)
 
         # open cv stuff:
@@ -67,6 +68,7 @@ class BallHitterNode(Node):
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
+        print("init done yay!")
     
     def loop_wrapper(self):
         """ This function takes care of calling the run_loop function repeatedly.
@@ -77,15 +79,18 @@ class BallHitterNode(Node):
         
         while True:
             self.run_loop()
+            if self.cv_image is not None:
+                cv2.imshow('video_window', self.cv_image)
             time.sleep(0.1)
 
     def read_pose(self,msg):
+        print('woo reading pose B)')
         self.robot_pose = msg
 
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
-        print("processing image :)")
+        #print("processing image")
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
@@ -96,33 +101,76 @@ class BallHitterNode(Node):
         self.ball_y = 1.0
 
     def find_objects(self):
-        print("starting find objects")
+        #print("starting find objects")
         ball_seen = 0
         goal_seen = 0
 
         #start turning to look for ball
-        self.search()
-        print("started search")
-        while not ball_seen:
-            print("ball not seen")
-            self.detect_ball()
-            if self.image_x == self.image_center: 
-                ball_seen = 1
-        self.stop()
+        
+        #print("started search")
+        #while not ball_seen:
+        found_ball = self.detect_ball()
+        if not found_ball:
+            #print("ball not seen")
+            self.search()
+        else:     
+            self.stop()
+            dist_from_mid = self.image_x - 512
+            print("found the ball yay!")
+            if abs(dist_from_mid) > 1:
+                self.detect_ball()
+                print("starting latest while")
+                
+                print(f"dist_from_mid: {dist_from_mid}")
+                print("before detect ball")
+                print("after detect ball")
+                speed_val = 0.2
+                if dist_from_mid > 0:
+                    dir = -1
+                else:
+                    dir = 1
+                print(speed_val * dir)
+                self.turn_at_speed(speed_val * dir)
+            else:
+                self.stop()
+                self.find_goal()
+        
 
-        #make note of current heading
-        ball_heading = self.heading_from_pose(self.robot_pose)
+    def find_goal(self):
+        ball_distance = self.find_ball_distance()
+        self.turn(0.5)
+        angle_to_ball = 0.5
+        goal_distance = self.find_goal_distance()
+        [self.ball_x, self.ball_y] = self.polar_to_cartesian(ball_distance, angle_to_ball) 
+        print(f"type goal dist: {type(goal_distance)}")
+        [self.goal_x, self.goal_y] = self.polar_to_cartesian(goal_distance, 0.0) 
+        print("Ball and goal dist:")
+        print(self.ball_x, self.ball_y)
+        print(self.goal_x, self.goal_y)
+        print("\n")
 
+        self.objects_found = True    
+
+        #make note of current heading NOTE from Han - this does not work
+        got_ball_heading = False
+        """
+        while not got_ball_heading:
+            try:
+                ball_heading = self.heading_from_pose(self.robot_pose)
+                ball_heading = True
+            except:
+                pass
+                #print("error with getting heading while looking at ball")
+        """
+        """
         #estimate distance
         ball_distance = self.find_ball_distance() 
 
         #spin until goal seen
-        """
         self.search()
         while not goal_seen:
             pass
         self.stop()
-        """
         
 
         #make note of angle change
@@ -133,8 +181,11 @@ class BallHitterNode(Node):
         goal_distance = self.find_goal_distance()
 
         #convert from polar to cartesian
-        [self.ball_x, self.ball_y] = self.polar_to_cartesian(ball_distance, angle_to_ball) 
-        [self.goal_x, self.goal_y] = self.polar_to_cartesian(goal_distance, 0) 
+        
+        """
+                
+
+        
     
     def find_ball_distance(self):
         #dummy, flesh out
@@ -146,24 +197,29 @@ class BallHitterNode(Node):
 
     def detect_ball(self):
         #I ran this function by itself in the run loop and it worked -Liv
-        print("detecting ball")
-        if not self.cv_image is None:
-            print("image is not none!")
-            cv2.imshow('video_window', self.cv_image)
+        #print("detecting ball")
+        if not self.hsv_image is None:
+            #print("image is not none!")
 
             self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
-            print(self.binary_hsv.size)
+            cv2.imshow('binary_window', self.binary_hsv)
+            #print(self.binary_hsv.size)
             contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             try:
                 blob = max(contours, key=lambda el: cv2.contourArea(el))
-                M = cv2.moments(blob)
+                area = cv2.contourArea(blob)                
+                if area > 150: #done with wide angle lens, ball has area of ~200 at range of ~3m
+                    
 
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                self.image_x = int(M["m10"] / M["m00"])
-                
-                canvas = self.binary_hsv.copy()
-                cv2.circle(canvas, center, 20, (50,50,50), -1)
-                cv2.imshow('masked_window', canvas)
+                    M = cv2.moments(blob)
+
+                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                    self.image_x = int(M["m10"] / M["m00"])
+                    
+                    canvas = self.binary_hsv.copy()
+                    cv2.circle(canvas, center, 20, (50,50,50), -1)
+                    cv2.imshow('masked_window', canvas)
+                    return True
             except:
                 pass
             
@@ -172,11 +228,11 @@ class BallHitterNode(Node):
         if hasattr(self, 'image_info_window'):
             cv2.imshow('image_info', self.image_info_window)
         cv2.waitKey(5)
-        print("done detecting ball")
+        #print("done detecting ball")
     
     def polar_to_cartesian(self,d,theta):
-        x = d * math.cos(theta)
-        y = d * math.sin(theta)
+        x = math.cos(theta) * d
+        y = math.sin(theta) * d
         return [x,y]
 
     def heading_from_pose(self, pose):
@@ -220,14 +276,21 @@ class BallHitterNode(Node):
         msg = Twist()
         speed = 0.0
         msg.angular.z = speed
+        msg.linear.x = speed
+        self.vel_pub.publish(msg)
+    
+    def turn_at_speed(self, speed):
+        msg = Twist()
+        msg.angular.z = speed
         self.vel_pub.publish(msg)
 
     def do_setup(self):
         #identify the locations of ball and goal
-        print("finding objects")
-        self.find_objects() #change this once find_objects is actually made
-        print(self.goal_x)
-        print(self.ball_x)
+        #print("finding objects")
+        while not self.objects_found:
+            self.find_objects() #change this once find_objects is actually made
+        #print(self.goal_x)
+        #print(self.ball_x)
 
         #Find the slope of the line between the goal and the ball in current Neato frame
         self.slope = (self.goal_y - self.ball_y) / (self.goal_x - self.ball_x)
@@ -238,8 +301,8 @@ class BallHitterNode(Node):
         #the xy location of the ball
         self.p2 = [self.ball_x, self.ball_y]
         self.pb = self.p2
-        print(self.p1)
-        print(self.p2)
+        #print(self.p1)
+        #print(self.p2)
 
         #Calculate the kicking point behind the ball
         self.p1[0] = self.p2[0] + self.n * (-1 * math.cos(self.theta_g)) 
@@ -314,6 +377,7 @@ class BallHitterNode(Node):
 
 
     def run_loop(self):
+        print(f"cv version: {cv2.__version__}")
         while not self.hit_ball:
             print('while not hit ball after')
             if not self.finished_setup:
