@@ -158,10 +158,13 @@ class BallFinder(Node):
             contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             blob = max(contours, key=lambda el: cv2.contourArea(el))
             M = cv2.moments(blob)
-            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-            canvas = self.binary_hsv.copy()
-            cv2.circle(canvas, center, 20, (50,50,50), -1)
-            cv2.imshow('canvas', canvas)
+            try:
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                canvas = self.binary_hsv.copy()
+                cv2.circle(canvas, center, 20, (50,50,50), -1)
+                cv2.imshow('canvas', canvas)
+            except:
+                pass
             print('a')
 
 
