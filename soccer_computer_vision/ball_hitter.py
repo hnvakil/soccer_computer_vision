@@ -53,6 +53,7 @@ class BallHitterNode(Node):
         self.cv_image = None                        # the latest image from the camera
         self.hsv_image = None
         self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
+        self.image_center = 0                       # the x coordinate of the middle of the image
 
         self.create_subscription(Image, image_topic, self.process_image, 10)
         self.h_lower_bound = 0
@@ -84,9 +85,9 @@ class BallHitterNode(Node):
         #start turning to look for ball
         self.search()
         while not ball_seen:
-            #look_for_ball()
-            #idk what to really write here. some funtion that looks for the ball
-            pass
+            self.detect_ball()
+            if self.image_x == self.image_center: 
+                ball_seen = 1
         self.stop()
 
         #make note of current heading
@@ -112,6 +113,29 @@ class BallHitterNode(Node):
         [self.ball_x, self.ball_y] = self.polar_to_cartesian(ball_distance, angle_to_ball) 
         [self.goal_x, self.goal_y] = self.polar_to_cartesian(goal_distance, 0) 
 
+    def detect_ball(self):
+        #I ran this function by itself in the run loop and it worked -Liv
+        cv2.namedWindow('video_window')
+        cv2.namedWindow('masked_window')
+
+        if not self.cv_image is None:
+            self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
+            print(type(self.binary_hsv))
+            print(self.binary_hsv)
+            contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            blob = max(contours, key=lambda el: cv2.contourArea(el))
+            M = cv2.moments(blob)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            self.image_x = int(M["m10"] / M["m00"])
+            
+            canvas = self.binary_hsv.copy()
+            cv2.circle(canvas, center, 20, (50,50,50), -1)
+            cv2.imshow('masked_window', canvas)
+            cv2.imshow('video_window', self.cv_image)
+        if hasattr(self, 'image_info_window'):
+            cv2.imshow('image_info', self.image_info_window)
+        cv2.waitKey(5)
+    
     def polar_to_cartesian(self,d,theta):
         x = d * math.cos(theta)
         y = d * math.sin(theta)
@@ -251,25 +275,6 @@ class BallHitterNode(Node):
 
 
     def run_loop(self):
-        cv2.namedWindow('video_window')
-        cv2.namedWindow('masked_window')
-
-        if not self.cv_image is None:
-            self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
-            print(type(self.binary_hsv))
-            print(self.binary_hsv)
-            contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            blob = max(contours, key=lambda el: cv2.contourArea(el))
-            M = cv2.moments(blob)
-            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-            
-            canvas = self.binary_hsv.copy()
-            cv2.circle(canvas, center, 20, (50,50,50), -1)
-            cv2.imshow('masked_window', canvas)
-            cv2.imshow('video_window', self.cv_image)
-        if hasattr(self, 'image_info_window'):
-            cv2.imshow('image_info', self.image_info_window)
-        cv2.waitKey(5)
 
         """
         while not self.hit_ball:
