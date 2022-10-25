@@ -70,6 +70,7 @@ class BallHitterNode(Node):
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
+        print("processing image :)")
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
@@ -136,6 +137,7 @@ class BallHitterNode(Node):
         if not self.cv_image is None:
             print("image is not none!")
             cv2.imshow('video_window', self.cv_image)
+
             self.binary_hsv = cv2.inRange(self.hsv_image, (self.h_lower_bound, self.s_lower_bound, self.v_lower_bound), (self.h_upper_bound, self.s_upper_bound, self.v_upper_bound))
             print(self.binary_hsv.size)
             contours, _ = cv2.findContours(self.binary_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
