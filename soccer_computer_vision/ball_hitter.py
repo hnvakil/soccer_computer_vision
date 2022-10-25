@@ -1,4 +1,6 @@
 from tkinter.ttk import setup_master
+from threading import Thread
+
 import rclpy
 import time
 import numpy as np
@@ -24,8 +26,7 @@ class BallHitterNode(Node):
     # 1: approaching person
     # 2: 
     def __init__(self, image_topic):
-        super().__init__('person_follower')
-        self.create_timer(0.1, self.run_loop)
+        super().__init__('ball_hitter')
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.marker_pub = self.create_publisher(Marker, 'marker', 10)
         self.goal_x = 0.0
@@ -63,6 +64,20 @@ class BallHitterNode(Node):
         self.h_upper_bound = 10
         self.s_upper_bound = 255
         self.v_upper_bound = 255
+
+        thread = Thread(target=self.loop_wrapper)
+        thread.start()
+    
+    def loop_wrapper(self):
+        """ This function takes care of calling the run_loop function repeatedly.
+            We are using a separate thread to run the loop_wrapper to work around
+            issues with single threaded executors in ROS2 """
+        cv2.namedWindow('video_window')
+        cv2.namedWindow('binary_window')
+        
+        while True:
+            self.run_loop()
+            time.sleep(0.1)
 
     def read_pose(self,msg):
         self.robot_pose = msg
@@ -131,8 +146,6 @@ class BallHitterNode(Node):
 
     def detect_ball(self):
         #I ran this function by itself in the run loop and it worked -Liv
-        cv2.namedWindow('video_window')
-        cv2.namedWindow('masked_window')
         print("detecting ball")
         if not self.cv_image is None:
             print("image is not none!")
