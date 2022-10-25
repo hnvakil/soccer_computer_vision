@@ -275,8 +275,6 @@ class BallHitterNode(Node):
 
 
     def run_loop(self):
-
-        """
         while not self.hit_ball:
             if not self.finished_setup:
                 self.do_setup()
@@ -291,7 +289,7 @@ class BallHitterNode(Node):
                 time.sleep(100)
             else: 
                 self.finished_setup = False
-        """
+        
         
         
 
