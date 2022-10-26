@@ -11,7 +11,8 @@ import sys
 import termios
 import cv2
 from rclpy.node import Node
-from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseArray, Pose, Point, Quaternion
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseArray, Point, Quaternion
+from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import Marker
 from sensor_msgs.msg import Image
@@ -30,7 +31,7 @@ class BallHitterNode(Node):
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.marker_pub = self.create_publisher(Marker, 'marker', 10)
         self.create_subscription(Image, image_topic, self.process_image, 10)
-        self.create_subscription(Pose, 'odom', self.read_pose, 10)
+        self.create_subscription(Odometry, 'odom', self.read_pose, 10)
 
         self.goal_x = 0.0
         self.goal_y = 0.0
@@ -65,8 +66,8 @@ class BallHitterNode(Node):
 
         self.h_lower_bound = 0
         self.s_lower_bound = 195
-        self.v_lower_bound = 50
-        self.h_upper_bound = 10
+        self.v_lower_bound = 105
+        self.h_upper_bound = 14
         self.s_upper_bound = 255
         self.v_upper_bound = 255
 
@@ -88,15 +89,15 @@ class BallHitterNode(Node):
             time.sleep(0.1)
 
     def read_pose(self,msg):
-        print('woo reading pose B)')
+        #print('woo reading pose B)')
         self.robot_pose = msg.pose.pose
-        print(f"self.robot_pose: {self.robot_pose}")
+        #print(f"self.robot_pose: {self.robot_pose}")
     
 
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
-        #print("processing image")
+        print("processing image")
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
@@ -159,37 +160,15 @@ class BallHitterNode(Node):
                 self.turn_at_speed(speed_val * dir)
             else:
                 self.stop()
-                self.goal_found = True
-
-
-
-
-        #make note of current heading NOTE from Han - this does not work
-        got_ball_heading = False
-        """
-        #estimate distance
-        ball_distance = self.find_ball_distance() 
-        #make note of angle change
-        goal_heading = self.heading_from_pose(self.robot_pose) 
-        angle_to_ball = goal_heading - ball_heading
-
-        #estimate distance
-        goal_distance = self.find_goal_distance()
-
-        #convert from polar to cartesian
-        
-        """
-                
-
-        
+                self.goal_found = True        
     
     def find_ball_distance(self):
         #dummy, flesh out
-        return 1 #m
+        return 1.0 #m
 
     def find_goal_distance(self):
         #dummy, flesh out
-        return 2
+        return 2.0
 
     def detect_ball(self):
         #I ran this function by itself in the run loop and it worked -Liv
@@ -226,7 +205,7 @@ class BallHitterNode(Node):
         if not self.hsv_image is None:
             #print("image is not none!")
 
-            self.goal_mask = cv2.inRange(self.hsv_image, (94, 129, 0), (110, 255, 39))
+            self.goal_mask = cv2.inRange(self.hsv_image, (105, 176, 70), (114, 255, 105))
             cv2.imshow('binary_window', self.goal_mask)
             #print(self.binary_hsv.size)
             contours, _ = cv2.findContours(self.goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -268,10 +247,11 @@ class BallHitterNode(Node):
                              pose.orientation.y,
                              pose.orientation.z,
                              pose.orientation.w)
+        print(f"orientation tuple: {orientation_tuple}")
         angles = self.euler_from_quaternion(*orientation_tuple)
         return angles[2]
     
-    def euler_from_quaternion(x, y, z, w):
+    def euler_from_quaternion(self, x, y, z, w):
         """
         Convert a quaternion into euler angles (roll, pitch, yaw)
         roll is rotation around x in radians (counterclockwise)
@@ -313,11 +293,60 @@ class BallHitterNode(Node):
 
     def do_setup(self):
         #identify the locations of ball and goal
-        while not self.ball_found:
-            self.find_ball() 
-        #record current heading
         while not self.goal_found:
             self.find_goal()
+        if self.robot_pose is not None: 
+            goal_heading = self.heading_from_pose(self.robot_pose)
+        else:
+            return None
+
+        goal_distance = self.find_goal_distance()
+
+        while not self.ball_found:
+            self.find_ball() 
+        if self.robot_pose is not None:
+            ball_heading = self.heading_from_pose(self.robot_pose)
+        else: 
+            return
+        
+        ball_distance = self.find_ball_distance()
+        
+       
+        
+
+        #x and y getting swapped - just swap?
+
+        print(f"ball heading: {ball_heading}")
+        print(f"goal heading: {goal_heading}")
+
+
+        goal_heading = goal_heading - ball_heading
+        ball_heading = 0.0
+        """
+        self.ball_x = 0.0
+        self.ball_y = ball_distance
+        self.goal_x = goal_distance * math.sin(-1 * goal_heading)
+        self.goal_y = goal_distance * math.cos(-1 * goal_heading)
+        """
+
+        self.ball_y = 0.0 * -1
+        self.ball_x = ball_distance 
+        self.goal_y = goal_distance * math.sin(-1 * goal_heading) * -1
+        self.goal_x = goal_distance * math.cos(-1 * goal_heading)
+
+        """
+        ball_heading = 0.1
+        goal_heading = 0.1
+        self.ball_x = 0.5
+        self.ball_y = 1.0
+        self.goal_x = 0.0
+        self.goal_y = 2.0
+        """
+        print(f"ball x: {self.ball_x}, ball y: {self.ball_y}")
+        print(f"goal x: {self.goal_x}, goal y: {self.goal_y}")
+        print(f"new goal heading: {goal_heading}")
+        print(f"new ball heading: {ball_heading}")
+
 
 
         #Find the slope of the line between the goal and the ball in current Neato frame
@@ -326,6 +355,7 @@ class BallHitterNode(Node):
         #find the angle that defines that slope, the final heading necessary to kick the ball
         self.theta_g = math.atan2(self.goal_y - self.ball_y, self.goal_x - self.ball_x)
         
+
         #the xy location of the ball
         self.p2 = [self.ball_x, self.ball_y]
         self.pb = self.p2
@@ -349,7 +379,10 @@ class BallHitterNode(Node):
         self.d_theta_2 = self.theta_g - self.theta_1
         
         #setup
+
         self.setup_markers()
+        print("did markers")
+        time.sleep(15)
         self.finished_setup = True
 
 
@@ -374,8 +407,8 @@ class BallHitterNode(Node):
         marker.color.r = 0.5
         marker.color.b = 0.5
         marker.pose.position.z = 0.0
-        marker.pose.position.y = y
-        marker.pose.position.x = x
+        marker.pose.position.y = y #+ self.robot_pose.position.y
+        marker.pose.position.x = x #+ self.robot_pose.position.x
         self.marker_pub.publish(marker)
 
     def turn(self, angle):
@@ -411,7 +444,7 @@ class BallHitterNode(Node):
             if not self.finished_setup:
                 print('if not finished setup after')
                 self.do_setup()
-            print(f"d_theta_1: {self.d_theta_1}, d1: {self.d1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
+            print(f"d_theta_1: {self.d_theta_1}, d1: {self.d_1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
             self.turn(self.d_theta_1)
             self.drive(self.d1)
             self.turn(self.d_theta_2)
