@@ -159,16 +159,16 @@ class BallTracker(Node):
             self.turn_speed = (self.center_x - 500) / -1000 * 3
             msg.angular.z = self.turn_speed
             if abs(self.center_x - 500) < 100:
-                msg.linear.x = 0.2
+                msg.linear.x = 0.0
             else:
                 msg.linear.x = 0.0
-            self.pub.publish(msg)
+            #self.pub.publish(msg)
             print(self.cv_image.shape)
             self.bin_with_circle = cv2.circle(self.binary_hsv, (math.floor(self.center_x), math.floor(self.center_y)), radius = 20, color = (0,100,50), thickness = 5)
             cv2.imshow('video_window', self.cv_image)
             #cv2.imshow('binary_window', self.binary_image)
             cv2.imshow('bin_with_circle', self.bin_with_circle)
-            #cv2.imshow('hsv_window', self.binary_hsv)
+            cv2.imshow('hsv_window', self.binary_hsv)
             if hasattr(self, 'image_info_window'):
                 cv2.imshow('image_info', self.image_info_window)
             cv2.waitKey(5)
