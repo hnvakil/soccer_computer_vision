@@ -57,6 +57,8 @@ class BallHitterNode(Node):
         self.ball_found = False
         self.ball_heading = 0.0
         self.goal_found = False
+        self.ball_radius = None
+        self.goal_height = None
 
         # open cv stuff:
         self.cv_image = None                        # the latest image from the camera
@@ -101,16 +103,8 @@ class BallHitterNode(Node):
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
-    def assign_objects(self):
-        self.goal_x = 3.0
-        self.goal_y = 2.0
-        self.ball_x = 2.0
-        self.ball_y = 1.0
-
     def find_ball(self):
         #print("starting find objects")
-        ball_seen = 0
-        goal_seen = 0
 
         #start turning to look for ball
         
@@ -136,7 +130,6 @@ class BallHitterNode(Node):
                 self.turn_at_speed(speed_val * dir)
             else:
                 self.stop()
-                self.ball_heading = 0.0 #something
                 self.ball_found = True
 
         
@@ -165,13 +158,13 @@ class BallHitterNode(Node):
     def find_ball_distance(self):
         #dummy, flesh out
         return 1.0 #m
+        
 
     def find_goal_distance(self):
         #dummy, flesh out
         return 2.0
 
     def detect_ball(self):
-        #I ran this function by itself in the run loop and it worked -Liv
         #print("detecting ball")
         if not self.hsv_image is None:
             #print("image is not none!")
@@ -190,6 +183,8 @@ class BallHitterNode(Node):
 
                     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                     self.ball_image_x = int(M["m10"] / M["m00"])
+                    _,radius = cv2.minEnclosingCircle(blob)
+                    self.ball_radius = radius
                     
                     canvas = self.binary_hsv.copy()
                     cv2.circle(canvas, center, 20, (50,50,50), -1)
@@ -220,6 +215,8 @@ class BallHitterNode(Node):
 
                     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                     self.goal_image_x = int(M["m10"] / M["m00"])
+                    _,_,_,h = cv2.boundingRect(blob)
+                    self.goal_height = h
                     
                     canvas = self.goal_mask.copy()
                     cv2.circle(canvas, center, 20, (50,50,50), -1)
