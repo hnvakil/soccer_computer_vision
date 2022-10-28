@@ -67,9 +67,9 @@ class BallHitterNode(Node):
         self.image_center = 512                       # the x coordinate of the middle of the image is this actually 0??
 
         self.h_lower_bound = 0
-        self.s_lower_bound = 195
-        self.v_lower_bound = 105
-        self.h_upper_bound = 14
+        self.s_lower_bound = 170
+        self.v_lower_bound = 159
+        self.h_upper_bound = 18
         self.s_upper_bound = 255
         self.v_upper_bound = 255
 
@@ -99,7 +99,7 @@ class BallHitterNode(Node):
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
-        print("processing image")
+        #print("processing image")
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
@@ -157,12 +157,14 @@ class BallHitterNode(Node):
     
     def find_ball_distance(self):
         #dummy, flesh out
-        return 1.0 #m
+        dist = 262.1 * self.ball_radius ** (-1.132) * 0.3048
+        return dist #m
         
 
     def find_goal_distance(self):
         #dummy, flesh out
-        return 2.0
+        dist = 873.3 * self.goal_height ** (-0.9837) * 0.3048
+        return dist
 
     def detect_ball(self):
         #print("detecting ball")
@@ -185,6 +187,8 @@ class BallHitterNode(Node):
                     self.ball_image_x = int(M["m10"] / M["m00"])
                     _,radius = cv2.minEnclosingCircle(blob)
                     self.ball_radius = radius
+                    print(f"self.ball_radius: {self.ball_radius}")
+                    
                     
                     canvas = self.binary_hsv.copy()
                     cv2.circle(canvas, center, 20, (50,50,50), -1)
@@ -200,7 +204,7 @@ class BallHitterNode(Node):
         if not self.hsv_image is None:
             #print("image is not none!")
 
-            self.goal_mask = cv2.inRange(self.hsv_image, (105, 176, 70), (114, 255, 105))
+            self.goal_mask = cv2.inRange(self.hsv_image, (98, 98, 0), (110, 255, 255))
             cv2.imshow('binary_window', self.goal_mask)
             #print(self.binary_hsv.size)
             contours, _ = cv2.findContours(self.goal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -217,6 +221,7 @@ class BallHitterNode(Node):
                     self.goal_image_x = int(M["m10"] / M["m00"])
                     _,_,_,h = cv2.boundingRect(blob)
                     self.goal_height = h
+                    print(f"self.goal_height: {self.goal_height}")
                     
                     canvas = self.goal_mask.copy()
                     cv2.circle(canvas, center, 20, (50,50,50), -1)
@@ -290,15 +295,18 @@ class BallHitterNode(Node):
 
     def do_setup(self):
         #identify the locations of ball and goal
+        
         while not self.goal_found:
             self.find_goal()
         if self.robot_pose is not None: 
             goal_heading = self.heading_from_pose(self.robot_pose)
         else:
             return None
-
+        
+        print(f"self.goal_height: {self.goal_height}")
         goal_distance = self.find_goal_distance()
-
+        print(f"goal distance: {goal_distance}")
+        
         while not self.ball_found:
             self.find_ball() 
         if self.robot_pose is not None:
@@ -306,7 +314,11 @@ class BallHitterNode(Node):
         else: 
             return
         
+        print(f"self.ball_radius: {self.ball_radius}")
         ball_distance = self.find_ball_distance()
+        print(f"ball_distance: {ball_distance}")
+        
+        
         
        
         
@@ -370,7 +382,7 @@ class BallHitterNode(Node):
         self.d_theta_1 = self.theta_1
         
         #Calculate distance to kicking point
-        self.d1 = math.sqrt(self.p1[0] ** 2 + self.p1[1] ** 2)
+        self.d_1 = math.sqrt(self.p1[0] ** 2 + self.p1[1] ** 2)
         
         #Calculate the amount that we need to turn to reach theta_g
         self.d_theta_2 = self.theta_g - self.theta_1
@@ -379,7 +391,7 @@ class BallHitterNode(Node):
 
         self.setup_markers()
         print("did markers")
-        time.sleep(15)
+        time.sleep(1)
         self.finished_setup = True
 
 
@@ -411,17 +423,20 @@ class BallHitterNode(Node):
     def turn(self, angle):
         msg = Twist()
         speed = 0.5
-        angle_sign = angle / abs(angle)
-        time_to_go = abs(angle) / speed
-        msg.angular.z = angle_sign * speed
-        self.vel_pub.publish(msg)
-        time.sleep(time_to_go)
-        msg.angular.z = 0.0
-        self.vel_pub.publish(msg)
+        try:
+            angle_sign = angle / abs(angle)
+            time_to_go = abs(angle) / speed
+            msg.angular.z = angle_sign * speed
+            self.vel_pub.publish(msg)
+            time.sleep(time_to_go)
+            msg.angular.z = 0.0
+            self.vel_pub.publish(msg)
+        except:
+            return
     
     def drive(self, dist):
         msg = Twist()
-        speed = 0.2
+        speed = 0.3
         time_to_go = dist / speed
         msg.linear.x = speed
         self.vel_pub.publish(msg)
@@ -439,19 +454,22 @@ class BallHitterNode(Node):
         while not self.hit_ball:
             #print('while not hit ball after')
             if not self.finished_setup:
-                print('if not finished setup after')
+                #print('if not finished setup after')
                 self.do_setup()
-            print(f"d_theta_1: {self.d_theta_1}, d1: {self.d_1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
+            
+            self.d_1 += 0.175
+            print(f"d_theta_1: {self.d_theta_1}, d_1: {self.d_1}, d_theta_2: {self.d_theta_2}, n: {self.n}, theta1: {self.theta_1}")
             self.turn(self.d_theta_1)
-            self.drive(self.d1)
+            self.drive(self.d_1)
             self.turn(self.d_theta_2)
             if self.check_lined_up_for_shot():
-                self.drive(self.n)
+                self.drive(self.n + 0.25)
                 self.hit_ball = True
                 self.drive(0.01)
                 time.sleep(100)
             else: 
                 self.finished_setup = False
+            
         
         
         
