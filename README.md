@@ -1,2 +1,14 @@
 # soccer_computer_vision
-Test Text
+By Han Vakil and Liv Dawes
+
+## Introduction 
+
+## Methodology 
+
+## Design Decisions
+
+## Challenges
+
+## Improvements 
+
+## Take-aways
