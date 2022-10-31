@@ -45,4 +45,10 @@ The importance of testing code was also a significant lesson learned in this pro
 
 A final take-away is the importance of commenting out code. We did a lot of work together but we also did a fair amount of coding work asynchronously. It was frustrating to come back to new code having been written and not understanding why it was there and what it did. Writing code asynchronously can be really efficient and a good way to work together, but it relies on effectively communicating to each other what the code does. Otherwise, you end up with multiple functions that do almost the same thing, wasted time trying to reverse engineer the purpose of the code, or the same variables being named different things in different places. 
 
-![alt-text](https://github.com/hnvakil/soccer_computer_vision/blob/main/goal.gif)
+## Neato In Action:
+
+The neato, having gotten the object locations slightly wrong, stops just short of the ball:
+![stops short](https://github.com/hnvakil/soccer_computer_vision/blob/main/neato_stops_short.gif)
+
+The neato, having gotten locations correct, hits the ball into the goal!
+![successful shot](https://github.com/hnvakil/soccer_computer_vision/blob/main/goal.gif)
